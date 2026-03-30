@@ -1,1126 +1,647 @@
-"""
-Smart Daily Productivity & Habit Tracker
-A premium productivity app for college students preparing for placements.
-Run with: streamlit run app.py
-"""
-
 import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
 import plotly.express as px
-from plotly.subplots import make_subplots
 import json
 import os
+from datetime import datetime, timedelta
 import random
-from datetime import datetime, date, timedelta
 
 # ─────────────────────────────────────────────────────────────────────────────
-# PAGE CONFIG
+# PAGE CONFIGURATION
 # ─────────────────────────────────────────────────────────────────────────────
 st.set_page_config(
-    page_title="ProductivityOS",
-    page_icon="🚀",
+    page_title="NeuroTrack AI",
+    page_icon="🌌",
     layout="wide",
-    initial_sidebar_state="expanded",
+    initial_sidebar_state="collapsed",
 )
 
 # ─────────────────────────────────────────────────────────────────────────────
-# CONSTANTS & THEME
+# STYLING (Premium Modern SaaS Look)
+# ─────────────────────────────────────────────────────────────────────────────
+st.markdown("""
+<style>
+    /* Google Fonts */
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+    /* Global Theme & Background */
+    .stApp {
+        background-color: #09090b;
+        background-image: 
+            radial-gradient(circle at 15% 50%, rgba(120, 119, 198, 0.1), transparent 25%),
+            radial-gradient(circle at 85% 30%, rgba(58, 163, 163, 0.1), transparent 25%);
+        color: #ededed;
+        font-family: 'Inter', sans-serif;
+    }
+    
+    /* Hide top header and default padding */
+    header {visibility: hidden;}
+    .block-container {
+        padding-top: 2rem !important;
+        padding-bottom: 2rem !important;
+        max-width: 1400px;
+    }
+
+    /* Glassmorphism Cards */
+    .glass-card {
+        background: rgba(24, 24, 27, 0.65);
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 24px;
+        padding: 24px;
+        box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
+        transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        margin-bottom: 24px;
+        overflow: hidden;
+        position: relative;
+    }
+    .glass-card:hover {
+        transform: translateY(-6px);
+        border: 1px solid rgba(46, 204, 113, 0.4);
+        box-shadow: 0 15px 35px rgba(0, 0, 0, 0.6), 0 0 20px rgba(46, 204, 113, 0.15);
+    }
+
+    /* Animated Gradient Text */
+    .hero-title {
+        font-size: 3.5rem;
+        font-weight: 800;
+        letter-spacing: -0.05em;
+        margin-bottom: 0.2rem;
+        background: linear-gradient(to right, #4facfe 0%, #00f2fe 50%, #4facfe 100%);
+        background-size: 200% auto;
+        color: #000;
+        background-clip: text;
+        text-fill-color: transparent;
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        animation: shine 4s linear infinite;
+    }
+    @keyframes shine {
+        to {
+            background-position: 200% center;
+        }
+    }
+    
+    .hero-subtitle {
+        font-size: 1.2rem;
+        color: #a1a1aa;
+        font-weight: 400;
+        margin-bottom: 2rem;
+        letter-spacing: 0.02em;
+    }
+
+    /* Status Text */
+    .status-badge {
+        display: inline-block;
+        padding: 6px 16px;
+        border-radius: 20px;
+        font-weight: 600;
+        font-size: 0.85rem;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        background: rgba(46, 204, 113, 0.1);
+        color: #2ecc71;
+        border: 1px solid rgba(46, 204, 113, 0.3);
+        box-shadow: 0 0 15px rgba(46, 204, 113, 0.2);
+    }
+
+    /* Custom Checkbox as Toggle Cards */
+    div[data-testid="stCheckbox"] {
+        background: rgba(39, 39, 42, 0.4);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        border-radius: 16px;
+        padding: 16px 20px;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        cursor: pointer;
+    }
+    div[data-testid="stCheckbox"]:hover {
+        background: rgba(39, 39, 42, 0.8);
+        transform: scale(1.02);
+        border-color: rgba(255, 255, 255, 0.15);
+    }
+    /* When Checked - using :has for modern browsers */
+    div[data-testid="stCheckbox"]:has(input:checked) {
+        background: linear-gradient(135deg, rgba(46, 204, 113, 0.15) 0%, rgba(24, 24, 27, 0.8) 100%);
+        border-color: #2ecc71;
+        box-shadow: inset 0 0 20px rgba(46, 204, 113, 0.05), 0 0 15px rgba(46, 204, 113, 0.2);
+    }
+    
+    .stCheckbox label {
+        color: #ededed !important;
+        font-weight: 500;
+        font-size: 1.1rem;
+        cursor: pointer;
+    }
+    
+    .stCheckbox [data-testid="stCheckboxMark"] {
+        border-color: rgba(255,255,255,0.3) !important;
+        background-color: transparent !important;
+    }
+    .stCheckbox input:checked + div[data-testid="stCheckboxMark"] {
+        background-color: #2ecc71 !important;
+        border-color: #2ecc71 !important;
+        box-shadow: 0 0 10px #2ecc71;
+    }
+
+    /* Metric Styling Overrides */
+    [data-testid="stMetricValue"] {
+        font-size: 2.5rem !important;
+        font-weight: 800 !important;
+        background: linear-gradient(135deg, #ffffff 0%, #a1a1aa 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+    }
+    [data-testid="stMetricLabel"] {
+        font-size: 1rem !important;
+        font-weight: 500 !important;
+        color: #a1a1aa;
+    }
+
+    /* Smart Insight Panel Text */
+    .insight-text {
+        font-size: 1.1rem;
+        font-weight: 500;
+        color: #e4e4e7;
+        background: linear-gradient(90deg, transparent, rgba(168, 85, 247, 0.1), transparent);
+        padding: 12px;
+        border-left: 4px solid #a855f7;
+        border-radius: 4px;
+        margin-top: 10px;
+    }
+
+    /* Custom scrollbar */
+    ::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+    }
+    ::-webkit-scrollbar-track {
+        background: #09090b; 
+    }
+    ::-webkit-scrollbar-thumb {
+        background: #27272a; 
+        border-radius: 10px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+        background: #3f3f46; 
+    }
+
+    /* Loading animation logic could go here */
+</style>
+""", unsafe_allow_html=True)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# CONSTANTS & DATA MANAGEMENT
 # ─────────────────────────────────────────────────────────────────────────────
 DATA_FILE = "productivity_data.json"
-
-CATEGORY_COLORS = {
-    "DSA":           {"bg": "#1a3a5c", "accent": "#4fc3f7", "text": "#4fc3f7",  "tag": "#0d47a1"},
-    "AI/ML":         {"bg": "#2d1b5e", "accent": "#ce93d8", "text": "#ce93d8",  "tag": "#6a1b9a"},
-    "Interview Prep":{"bg": "#3e2000", "accent": "#ffb74d", "text": "#ffb74d",  "tag": "#e65100"},
-    "Study":         {"bg": "#1b3a1f", "accent": "#81c784", "text": "#81c784",  "tag": "#2e7d32"},
-    "Break":         {"bg": "#1a1a2e", "accent": "#90a4ae", "text": "#90a4ae",  "tag": "#455a64"},
-    "Fun":           {"bg": "#3a2800", "accent": "#ffd54f", "text": "#ffd54f",  "tag": "#f57f17"},
-    "Class/Lab":     {"bg": "#1a2a3a", "accent": "#80cbc4", "text": "#80cbc4",  "tag": "#00695c"},
-}
-
-MOTIVATIONAL_QUOTES = [
-    "The expert in anything was once a beginner. Keep grinding! 💪",
-    "DSA today, dream offer tomorrow. Stay consistent! 🎯",
-    "Every line of code brings you closer to your goal. 🚀",
-    "Placement season separates the consistent from the wisher. Be consistent. 🔥",
-    "Your future self is watching. Make them proud today. ✨",
-    "One more problem solved = one step closer to that dream company. 💡",
-    "Discipline is choosing between what you want now and what you want most. 🧠",
-    "The grind never lies. Results come to those who show up daily. 🌟",
-    "Today's preparation = tomorrow's performance. Let's go! ⚡",
-    "You don't rise to your goals, you fall to your systems. Build yours. 🏗️",
-]
-
-HABITS = [
-    {"id": "dsa",       "label": "DSA Practice",         "icon": "💻", "category": "DSA",            "target_min": 90},
-    {"id": "aiml",      "label": "AI/ML Learning",        "icon": "🤖", "category": "AI/ML",          "target_min": 60},
-    {"id": "interview", "label": "Interview Preparation", "icon": "🎤", "category": "Interview Prep", "target_min": 60},
-    {"id": "study",     "label": "Class Study",           "icon": "📚", "category": "Study",          "target_min": 45},
-    {"id": "assignment","label": "Assignment Work",       "icon": "📝", "category": "Study",          "target_min": 30},
-]
-
-# Full week schedule (base - non-lab days)
-BASE_SCHEDULE = [
-    {"time": "08:00–09:00", "task": "Morning DSA (Warm-up)",              "category": "DSA",            "duration": 60},
-    {"time": "09:00–10:30", "task": "Deep Work: DSA Problems",            "category": "DSA",            "duration": 90},
-    {"time": "10:30–11:00", "task": "Break + Breakfast",                  "category": "Break",          "duration": 30},
-    {"time": "11:00–12:30", "task": "AI/ML Study / Project Work",         "category": "AI/ML",          "duration": 90},
-    {"time": "12:30–13:30", "task": "Lunch Break",                        "category": "Break",          "duration": 60},
-    {"time": "13:30–15:00", "task": "College Study / Assignments",        "category": "Study",          "duration": 90},
-    {"time": "15:00–16:30", "task": "Interview Prep (Core CS + HR)",      "category": "Interview Prep", "duration": 90},
-    {"time": "16:30–17:00", "task": "Power Nap / Refresh",                "category": "Break",          "duration": 30},
-    {"time": "17:00–18:00", "task": "Revision + Note Making",             "category": "Study",          "duration": 60},
-    {"time": "18:00–20:00", "task": "Advanced DSA / CP",                  "category": "DSA",            "duration": 120},
-    {"time": "20:00–21:00", "task": "Dinner + Casual Reading",            "category": "Break",          "duration": 60},
-    {"time": "21:00–22:30", "task": "AI/ML Deep Dive / Research",         "category": "AI/ML",          "duration": 90},
-    {"time": "22:30–23:30", "task": "Mock Interviews / Aptitude",         "category": "Interview Prep", "duration": 60},
-    {"time": "23:30–01:00", "task": "🎮 Minecraft / Chill (if deserved)", "category": "Fun",            "duration": 90},
-]
-
-# Lab day overrides
-LAB_SCHEDULES = {
+WEEKLY_SCHEDULE = {
     "Monday": [
-        # 8:00-9:40 → Lab slot (removed from base, replaced with class)
-        {"time": "08:00–09:40", "task": "🔬 Lab Session (College)",           "category": "Class/Lab",      "duration": 100},
-        {"time": "09:40–11:00", "task": "Deep Work: DSA Problems",            "category": "DSA",            "duration": 80},
-        {"time": "11:00–11:30", "task": "Break + Snack",                      "category": "Break",          "duration": 30},
-        {"time": "11:30–13:00", "task": "AI/ML Study / Project Work",         "category": "AI/ML",          "duration": 90},
-        {"time": "13:00–14:00", "task": "Lunch Break",                        "category": "Break",          "duration": 60},
-        {"time": "14:00–15:30", "task": "College Study / Assignments",        "category": "Study",          "duration": 90},
-        {"time": "15:30–17:00", "task": "Interview Prep (Core CS + HR)",      "category": "Interview Prep", "duration": 90},
-        {"time": "17:00–17:30", "task": "Power Nap / Refresh",                "category": "Break",          "duration": 30},
-        {"time": "17:30–18:00", "task": "Revision + Note Making",             "category": "Study",          "duration": 30},
-        {"time": "18:00–20:00", "task": "Advanced DSA / CP",                  "category": "DSA",            "duration": 120},
-        {"time": "20:00–21:00", "task": "Dinner + Casual Reading",            "category": "Break",          "duration": 60},
-        {"time": "21:00–22:30", "task": "AI/ML Deep Dive / Research",         "category": "AI/ML",          "duration": 90},
-        {"time": "22:30–23:30", "task": "Mock Interviews / Aptitude",         "category": "Interview Prep", "duration": 60},
-        {"time": "23:30–01:00", "task": "🎮 Minecraft / Chill (if deserved)", "category": "Fun",            "duration": 90},
+        "10:00 – 11:30 → AI/ML Learning",
+        "11:30 – 12:15 → Interview Preparation",
+        "12:15 – 1:00 → Class Study",
+        "6:00 – 7:00 → Class Study",
+        "7:00 – 8:00 → Assignment",
+        "8:00 – 8:30 → Dinner",
+        "8:30 – 9:30 → DSA",
+        "9:30 – 10:30 → AI/ML Practice",
+        "10:30 – 11:00 → Minecraft",
+        "11:00 – 12:00 → Interview Preparation",
+        "12:00 – 1:00 → Relax"
+    ],
+    "Tuesday": [
+        "8:00 – 10:00 → DSA",
+        "10:00 – 11:30 → AI/ML",
+        "11:30 – 12:15 → Interview Preparation",
+        "12:15 – 1:00 → Class Study",
+        "6:00 – 7:00 → Class Study",
+        "7:00 – 8:00 → Assignment",
+        "8:00 – 8:30 → Dinner",
+        "8:30 – 9:30 → AI/ML",
+        "9:30 – 10:30 → DSA Revision",
+        "10:30 – 11:30 → Relax"
+    ],
+    "Wednesday": [
+        "8:00 – 9:30 → DSA",
+        "9:30 – 11:00 → AI/ML",
+        "6:00 – 7:00 → Class Study",
+        "7:00 – 8:00 → Assignment",
+        "8:00 – 8:30 → Dinner",
+        "8:30 – 9:30 → Interview Preparation",
+        "9:30 – 10:30 → AI/ML Project",
+        "10:30 – 11:30 → Minecraft / Relax",
+        "11:30 – 1:00 → Revision"
     ],
     "Thursday": [
-        # 8:00-11:30 → Long lab block
-        {"time": "08:00–11:30", "task": "🔬 Extended Lab Session (College)",  "category": "Class/Lab",      "duration": 210},
-        {"time": "11:30–12:00", "task": "Break + Lunch Prep",                 "category": "Break",          "duration": 30},
-        {"time": "12:00–13:30", "task": "AI/ML Study / Project Work",         "category": "AI/ML",          "duration": 90},
-        {"time": "13:30–14:30", "task": "Lunch Break",                        "category": "Break",          "duration": 60},
-        {"time": "14:30–16:00", "task": "College Study / Assignments",        "category": "Study",          "duration": 90},
-        {"time": "16:00–17:30", "task": "Interview Prep (Core CS + HR)",      "category": "Interview Prep", "duration": 90},
-        {"time": "17:30–18:00", "task": "Revision + Note Making",             "category": "Study",          "duration": 30},
-        {"time": "18:00–20:00", "task": "Advanced DSA / CP",                  "category": "DSA",            "duration": 120},
-        {"time": "20:00–21:00", "task": "Dinner + Casual Reading",            "category": "Break",          "duration": 60},
-        {"time": "21:00–22:30", "task": "AI/ML Deep Dive / Research",         "category": "AI/ML",          "duration": 90},
-        {"time": "22:30–23:30", "task": "Mock Interviews / Aptitude",         "category": "Interview Prep", "duration": 60},
-        {"time": "23:30–01:00", "task": "🎮 Minecraft / Chill (if deserved)", "category": "Fun",            "duration": 90},
+        "11:30 – 1:00 → AI/ML / Light Work",
+        "6:00 – 7:00 → Class Study",
+        "7:00 – 8:00 → Assignment",
+        "8:00 – 8:30 → Dinner",
+        "8:30 – 9:15 → AI News / Revision",
+        "9:15 – 10:00 → DSA (Easy)"
     ],
     "Friday": [
-        {"time": "08:00–09:50", "task": "Morning DSA (Warm-up) + Deep Work",  "category": "DSA",            "duration": 110},
-        # 9:50-11:30 → Lab slot
-        {"time": "09:50–11:30", "task": "🔬 Lab Session (College)",           "category": "Class/Lab",      "duration": 100},
-        {"time": "11:30–12:30", "task": "AI/ML Study / Project Work",         "category": "AI/ML",          "duration": 60},
-        {"time": "12:30–13:30", "task": "Lunch Break",                        "category": "Break",          "duration": 60},
-        {"time": "13:30–15:00", "task": "College Study / Assignments",        "category": "Study",          "duration": 90},
-        {"time": "15:00–16:30", "task": "Interview Prep (Core CS + HR)",      "category": "Interview Prep", "duration": 90},
-        {"time": "16:30–17:00", "task": "Power Nap / Refresh",                "category": "Break",          "duration": 30},
-        {"time": "17:00–18:00", "task": "Revision + Note Making",             "category": "Study",          "duration": 60},
-        {"time": "18:00–20:00", "task": "Advanced DSA / CP",                  "category": "DSA",            "duration": 120},
-        {"time": "20:00–21:00", "task": "Dinner + Casual Reading",            "category": "Break",          "duration": 60},
-        {"time": "21:00–22:30", "task": "AI/ML Deep Dive / Research",         "category": "AI/ML",          "duration": 90},
-        {"time": "22:30–23:30", "task": "Mock Interviews / Aptitude",         "category": "Interview Prep", "duration": 60},
-        {"time": "23:30–01:00", "task": "🎮 Minecraft / Chill (if deserved)", "category": "Fun",            "duration": 90},
+        "8:00 – 9:30 → DSA",
+        "11:30 – 1:00 → AI/ML",
+        "6:00 – 7:00 → Class Study",
+        "7:00 – 8:00 → Assignment",
+        "8:00 – 8:30 → Dinner",
+        "8:30 – 9:30 → AI/ML",
+        "9:30 – 10:30 → Interview Preparation",
+        "10:30 – 11:30 → Relax"
     ],
+    "Saturday": [
+        "8:00 – 10:30 → DSA",
+        "10:30 – 1:00 → AI/ML Project",
+        "6:00 – 7:00 → Interview Preparation",
+        "7:00 – 8:00 → GitHub / Portfolio",
+        "8:00 – 8:30 → Dinner",
+        "8:30 – 10:00 → AI/ML Build",
+        "10:00 – 11:00 → Minecraft"
+    ],
+    "Sunday": [
+        "8:00 – 10:00 → DSA Revision",
+        "10:00 – 12:00 → AI/ML Recap",
+        "6:00 – 7:00 → Weekly Planning",
+        "7:00 – 8:00 → Light Coding",
+        "8:00 – 8:30 → Dinner",
+        "8:30 – 10:00 → Relax"
+    ]
 }
 
-# ─────────────────────────────────────────────────────────────────────────────
-# DATA PERSISTENCE
-# ─────────────────────────────────────────────────────────────────────────────
-def load_data() -> dict:
-    """Load persisted data from JSON file."""
+def get_day_habits(date_obj):
+    if isinstance(date_obj, str):
+        try:
+            date_obj = datetime.strptime(date_obj, "%Y-%m-%d").date()
+        except Exception:
+            return []
+    day_name = date_obj.strftime("%A")
+    return WEEKLY_SCHEDULE.get(day_name, [])
+
+def load_data():
     if os.path.exists(DATA_FILE):
         try:
             with open(DATA_FILE, "r") as f:
-                return json.load(f)
-        except (json.JSONDecodeError, IOError):
-            pass
-    return {"days": {}, "streaks": {h["id"]: 0 for h in HABITS}, "settings": {"theme": "dark"}}
-
-def save_data(data: dict) -> None:
-    """Persist data to JSON file."""
-    with open(DATA_FILE, "w") as f:
-        json.dump(data, f, indent=2)
-
-def get_today_key() -> str:
-    return date.today().isoformat()
-
-def get_day_data(data: dict, day_key: str) -> dict:
-    """Get or initialise data for a given day."""
-    if day_key not in data["days"]:
-        data["days"][day_key] = {
-            "habits":      {h["id"]: False for h in HABITS},
-            "task_status": {},
-            "notes":       "",
-            "score":       0,
-        }
-    return data["days"][day_key]
-
-def compute_score(day_data: dict) -> int:
-    """Compute daily productivity score (0–100)."""
-    habits = day_data.get("habits", {})
-    completed = sum(1 for v in habits.values() if v)
-    total = len(HABITS)
-    return int((completed / total) * 100) if total else 0
-
-def compute_streaks(data: dict) -> dict:
-    """Recompute streaks for each habit based on history."""
-    streaks = {h["id"]: 0 for h in HABITS}
-    today = date.today()
-    for habit in HABITS:
-        hid = habit["id"]
-        streak = 0
-        check_date = today
-        while True:
-            key = check_date.isoformat()
-            if key in data["days"] and data["days"][key]["habits"].get(hid, False):
-                streak += 1
-                check_date -= timedelta(days=1)
-            else:
-                break
-        streaks[hid] = streak
-    return streaks
-
-def get_last_n_days(data: dict, n: int = 7) -> list:
-    """Return list of (date_str, score) for last n days."""
-    result = []
-    today = date.today()
-    for i in range(n - 1, -1, -1):
-        d = today - timedelta(days=i)
-        key = d.isoformat()
-        score = 0
-        if key in data["days"]:
-            score = compute_score(data["days"][key])
-        result.append({"date": d.strftime("%b %d"), "score": score, "key": key})
-    return result
-
-# ─────────────────────────────────────────────────────────────────────────────
-# SCHEDULE HELPERS
-# ─────────────────────────────────────────────────────────────────────────────
-def get_today_schedule() -> list:
-    day_name = datetime.now().strftime("%A")
-    return LAB_SCHEDULES.get(day_name, BASE_SCHEDULE)
-
-def is_task_completed(day_data: dict, task_id: str) -> bool:
-    return day_data.get("task_status", {}).get(task_id, False)
-
-def get_current_time_slot(schedule: list) -> int:
-    """Return index of current time slot, -1 if none."""
-    now = datetime.now()
-    now_minutes = now.hour * 60 + now.minute
-    for i, slot in enumerate(schedule):
-        try:
-            start_str = slot["time"].split("–")[0]
-            h, m = map(int, start_str.split(":"))
-            start_min = h * 60 + m
-            end_str = slot["time"].split("–")[1]
-            he, me = map(int, end_str.split(":"))
-            end_min = he * 60 + me
-            # handle overnight (e.g. 23:30–01:00)
-            if end_min < start_min:
-                end_min += 24 * 60
-            if start_min <= now_minutes < end_min:
-                return i
+                data = json.load(f)
+                # Ensure structure
+                if "history" not in data:
+                    data = {"history": data.get("days", {}), "settings": data.get("settings", {})}
+                return data
         except Exception:
-            pass
-    return -1
-
-# ─────────────────────────────────────────────────────────────────────────────
-# CSS INJECTION
-# ─────────────────────────────────────────────────────────────────────────────
-def inject_css(theme: str = "dark") -> None:
-    if theme == "dark":
-        bg_main      = "#0a0e1a"
-        bg_secondary = "#0f1526"
-        bg_card      = "rgba(255,255,255,0.04)"
-        bg_card2     = "rgba(255,255,255,0.07)"
-        text_primary = "#e8eaf6"
-        text_muted   = "#7986cb"
-        border_color = "rgba(255,255,255,0.08)"
-        sidebar_bg   = "#060912"
-        accent       = "#6c63ff"
-        accent2      = "#4fc3f7"
-    else:
-        bg_main      = "#f0f4ff"
-        bg_secondary = "#e8edf8"
-        bg_card      = "rgba(255,255,255,0.85)"
-        bg_card2     = "rgba(255,255,255,0.95)"
-        text_primary = "#1a1d2e"
-        text_muted   = "#5c6bc0"
-        border_color = "rgba(0,0,0,0.08)"
-        sidebar_bg   = "#e0e8ff"
-        accent       = "#6c63ff"
-        accent2      = "#0288d1"
-
-    st.markdown(f"""
-    <style>
-    @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
-
-    /* ── GLOBAL RESET ─────────────────────────────────────── */
-    html, body, [class*="css"] {{
-        font-family: 'Space Grotesk', sans-serif !important;
-    }}
-    .stApp {{
-        background: {bg_main} !important;
-        background-image:
-            radial-gradient(ellipse 80% 50% at 20% 0%, rgba(108,99,255,0.12) 0%, transparent 60%),
-            radial-gradient(ellipse 60% 40% at 80% 100%, rgba(79,195,247,0.08) 0%, transparent 60%) !important;
-        color: {text_primary} !important;
-    }}
-
-    /* ── SIDEBAR ──────────────────────────────────────────── */
-    section[data-testid="stSidebar"] {{
-        background: {sidebar_bg} !important;
-        border-right: 1px solid {border_color} !important;
-    }}
-    section[data-testid="stSidebar"] .stMarkdown p,
-    section[data-testid="stSidebar"] label,
-    section[data-testid="stSidebar"] .stRadio label {{
-        color: {text_primary} !important;
-    }}
-
-    /* ── MAIN CONTENT ─────────────────────────────────────── */
-    .main .block-container {{
-        padding: 2rem 2.5rem 3rem 2.5rem !important;
-        max-width: 1300px !important;
-    }}
-
-    /* ── HEADINGS ─────────────────────────────────────────── */
-    h1, h2, h3, h4 {{
-        color: {text_primary} !important;
-        letter-spacing: -0.02em;
-    }}
-
-    /* ── GLASS CARD ───────────────────────────────────────── */
-    .glass-card {{
-        background: {bg_card};
-        backdrop-filter: blur(20px);
-        -webkit-backdrop-filter: blur(20px);
-        border: 1px solid {border_color};
-        border-radius: 16px;
-        padding: 1.5rem;
-        margin-bottom: 1rem;
-        transition: all 0.25s ease;
-        box-shadow: 0 4px 24px rgba(0,0,0,0.15);
-    }}
-    .glass-card:hover {{
-        background: {bg_card2};
-        box-shadow: 0 8px 40px rgba(108,99,255,0.18);
-        border-color: rgba(108,99,255,0.3);
-        transform: translateY(-2px);
-    }}
-
-    /* ── TIMELINE ITEM ────────────────────────────────────── */
-    .timeline-item {{
-        display: flex;
-        align-items: flex-start;
-        gap: 1rem;
-        padding: 0.9rem 1.2rem;
-        border-radius: 12px;
-        margin-bottom: 0.5rem;
-        border-left: 3px solid transparent;
-        transition: all 0.2s ease;
-        cursor: default;
-    }}
-    .timeline-item:hover {{
-        transform: translateX(4px);
-    }}
-    .timeline-time {{
-        font-family: 'JetBrains Mono', monospace;
-        font-size: 0.75rem;
-        font-weight: 500;
-        min-width: 110px;
-        opacity: 0.7;
-        padding-top: 2px;
-    }}
-    .timeline-task {{
-        flex: 1;
-        font-size: 0.88rem;
-        font-weight: 500;
-        line-height: 1.4;
-    }}
-    .timeline-badge {{
-        font-size: 0.68rem;
-        font-weight: 600;
-        padding: 2px 8px;
-        border-radius: 20px;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-        white-space: nowrap;
-    }}
-    .current-slot {{
-        animation: pulse-glow 2s infinite;
-    }}
-    @keyframes pulse-glow {{
-        0%, 100% {{ box-shadow: 0 0 0 0 rgba(108,99,255,0); }}
-        50%        {{ box-shadow: 0 0 12px 3px rgba(108,99,255,0.35); }}
-    }}
-
-    /* ── HABIT CARD ───────────────────────────────────────── */
-    .habit-card {{
-        background: {bg_card};
-        border: 1px solid {border_color};
-        border-radius: 14px;
-        padding: 1.1rem 1.3rem;
-        margin-bottom: 0.6rem;
-        transition: all 0.2s ease;
-    }}
-    .habit-card.completed {{
-        border-color: rgba(129,199,132,0.5);
-        background: rgba(129,199,132,0.06);
-    }}
-    .habit-card:hover {{
-        border-color: rgba(108,99,255,0.4);
-        box-shadow: 0 4px 20px rgba(108,99,255,0.1);
-    }}
-    .habit-header {{
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 0.5rem;
-    }}
-    .habit-title {{
-        font-weight: 600;
-        font-size: 0.9rem;
-        color: {text_primary};
-    }}
-    .streak-badge {{
-        font-size: 0.78rem;
-        font-weight: 700;
-        padding: 3px 10px;
-        border-radius: 20px;
-        background: linear-gradient(135deg, #ff6b35, #f7c59f);
-        color: #1a0a00;
-    }}
-
-    /* ── PROGRESS BAR ─────────────────────────────────────── */
-    .progress-wrap {{
-        background: rgba(255,255,255,0.08);
-        border-radius: 99px;
-        height: 6px;
-        overflow: hidden;
-        margin-top: 6px;
-    }}
-    .progress-fill {{
-        height: 100%;
-        border-radius: 99px;
-        transition: width 0.6s ease;
-    }}
-
-    /* ── METRIC CARD ──────────────────────────────────────── */
-    .metric-card {{
-        background: {bg_card};
-        border: 1px solid {border_color};
-        border-radius: 16px;
-        padding: 1.4rem;
-        text-align: center;
-        transition: all 0.25s ease;
-    }}
-    .metric-card:hover {{
-        transform: translateY(-3px);
-        box-shadow: 0 12px 40px rgba(108,99,255,0.2);
-    }}
-    .metric-value {{
-        font-size: 2.2rem;
-        font-weight: 700;
-        line-height: 1;
-        margin-bottom: 0.4rem;
-        background: linear-gradient(135deg, {accent}, {accent2});
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
-    }}
-    .metric-label {{
-        font-size: 0.78rem;
-        color: {text_muted};
-        font-weight: 500;
-        text-transform: uppercase;
-        letter-spacing: 0.07em;
-    }}
-
-    /* ── INSIGHT CARD ─────────────────────────────────────── */
-    .insight-card {{
-        padding: 1rem 1.3rem;
-        border-radius: 12px;
-        margin-bottom: 0.6rem;
-        font-size: 0.88rem;
-        line-height: 1.5;
-        font-weight: 500;
-        border-left: 3px solid;
-    }}
-    .insight-success {{
-        background: rgba(129,199,132,0.1);
-        border-color: #81c784;
-        color: #81c784;
-    }}
-    .insight-warning {{
-        background: rgba(255,183,77,0.1);
-        border-color: #ffb74d;
-        color: #ffb74d;
-    }}
-    .insight-info {{
-        background: rgba(79,195,247,0.1);
-        border-color: #4fc3f7;
-        color: #4fc3f7;
-    }}
-
-    /* ── SCORE RING ───────────────────────────────────────── */
-    .score-ring-wrap {{
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        padding: 1rem;
-    }}
-    .score-number {{
-        font-size: 3.5rem;
-        font-weight: 800;
-        background: linear-gradient(135deg, #6c63ff, #4fc3f7);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
-        line-height: 1;
-    }}
-
-    /* ── REWARD CARD ──────────────────────────────────────── */
-    .reward-card {{
-        background: linear-gradient(135deg, rgba(255,213,79,0.15), rgba(255,111,0,0.15));
-        border: 1px solid rgba(255,213,79,0.4);
-        border-radius: 16px;
-        padding: 1.5rem;
-        text-align: center;
-        animation: reward-glow 2s ease-in-out infinite alternate;
-    }}
-    @keyframes reward-glow {{
-        from {{ box-shadow: 0 0 15px rgba(255,213,79,0.2); }}
-        to   {{ box-shadow: 0 0 35px rgba(255,213,79,0.5); }}
-    }}
-
-    /* ── QUOTE CARD ───────────────────────────────────────── */
-    .quote-card {{
-        background: linear-gradient(135deg, rgba(108,99,255,0.1), rgba(79,195,247,0.1));
-        border: 1px solid rgba(108,99,255,0.2);
-        border-radius: 14px;
-        padding: 1.2rem 1.5rem;
-        font-size: 0.9rem;
-        font-style: italic;
-        color: {text_muted};
-        line-height: 1.6;
-        margin-bottom: 1.2rem;
-    }}
-
-    /* ── SECTION HEADER ───────────────────────────────────── */
-    .section-header {{
-        display: flex;
-        align-items: center;
-        gap: 0.7rem;
-        margin-bottom: 1.2rem;
-        padding-bottom: 0.7rem;
-        border-bottom: 1px solid {border_color};
-    }}
-    .section-title {{
-        font-size: 1.1rem;
-        font-weight: 700;
-        color: {text_primary};
-        letter-spacing: -0.01em;
-    }}
-    .section-icon {{
-        font-size: 1.2rem;
-    }}
-
-    /* ── LOGO ─────────────────────────────────────────────── */
-    .app-logo {{
-        font-size: 1.5rem;
-        font-weight: 800;
-        letter-spacing: -0.03em;
-        background: linear-gradient(135deg, #6c63ff 0%, #4fc3f7 100%);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
-        margin-bottom: 0.2rem;
-    }}
-    .app-tagline {{
-        font-size: 0.72rem;
-        color: {text_muted};
-        text-transform: uppercase;
-        letter-spacing: 0.12em;
-        font-weight: 500;
-    }}
-
-    /* ── STREAMLIT OVERRIDES ──────────────────────────────── */
-    .stCheckbox label {{
-        color: {text_primary} !important;
-        font-size: 0.88rem !important;
-    }}
-    .stTabs [data-baseweb="tab-list"] {{
-        background: transparent !important;
-        gap: 0.3rem !important;
-        border-bottom: 1px solid {border_color} !important;
-    }}
-    .stTabs [data-baseweb="tab"] {{
-        background: transparent !important;
-        border: none !important;
-        border-radius: 8px 8px 0 0 !important;
-        color: {text_muted} !important;
-        font-weight: 500 !important;
-        font-size: 0.88rem !important;
-        padding: 0.5rem 1.2rem !important;
-    }}
-    .stTabs [aria-selected="true"] {{
-        background: rgba(108,99,255,0.15) !important;
-        color: {text_primary} !important;
-    }}
-    div[data-testid="stMarkdownContainer"] p {{
-        color: {text_primary} !important;
-    }}
-    .stSelectbox > label, .stTextArea > label {{
-        color: {text_muted} !important;
-        font-size: 0.82rem !important;
-    }}
-    .stButton > button {{
-        background: linear-gradient(135deg, #6c63ff, #5a52d5) !important;
-        color: white !important;
-        border: none !important;
-        border-radius: 10px !important;
-        font-weight: 600 !important;
-        font-family: 'Space Grotesk', sans-serif !important;
-        transition: all 0.2s ease !important;
-        padding: 0.5rem 1.3rem !important;
-    }}
-    .stButton > button:hover {{
-        transform: translateY(-2px) !important;
-        box-shadow: 0 6px 20px rgba(108,99,255,0.4) !important;
-    }}
-    /* hide default streamlit header */
-    header[data-testid="stHeader"] {{ display: none !important; }}
-    .stDeployButton {{ display: none !important; }}
-    </style>
-    """, unsafe_allow_html=True)
-
-# ─────────────────────────────────────────────────────────────────────────────
-# COMPONENTS
-# ─────────────────────────────────────────────────────────────────────────────
-
-def render_timeline(schedule: list, day_data: dict, data: dict, today_key: str) -> None:
-    """Render the timeline view with completion toggles."""
-    current_idx = get_current_time_slot(schedule)
-
-    st.markdown('<div class="section-header"><span class="section-icon">🕐</span><span class="section-title">Today\'s Timeline</span></div>', unsafe_allow_html=True)
-
-    task_status = day_data.setdefault("task_status", {})
-
-    for i, slot in enumerate(schedule):
-        cat = slot["category"]
-        colors = CATEGORY_COLORS.get(cat, CATEGORY_COLORS["Break"])
-        task_id = f"{slot['time']}_{slot['task'][:20]}"
-        completed = task_status.get(task_id, False)
-
-        # Determine styling
-        if completed:
-            bg_alpha = "rgba(129,199,132,0.08)"
-            border_color = "#4caf50"
-            opacity = "0.7"
-            status_icon = "✅"
-        elif i == current_idx:
-            bg_alpha = f"rgba(108,99,255,0.12)"
-            border_color = "#6c63ff"
-            opacity = "1"
-            status_icon = "▶️"
-        else:
-            bg_alpha = colors["bg"].replace(")", ", 0.4)").replace("rgb", "rgba") if colors["bg"].startswith("rgb") else colors["bg"] + "cc"
-            # simpler approach:
-            bg_alpha = f"rgba(255,255,255,0.03)"
-            border_color = colors["accent"]
-            opacity = "1"
-            status_icon = "⏳"
-
-        current_class = "current-slot" if i == current_idx and not completed else ""
-
-        # Checkbox for non-break items
-        col_check, col_content = st.columns([0.06, 0.94])
-        with col_check:
-            if cat not in ["Break"]:
-                checked = st.checkbox(
-                    label="",
-                    value=completed,
-                    key=f"task_{today_key}_{task_id}",
-                    label_visibility="collapsed"
-                )
-                if checked != completed:
-                    task_status[task_id] = checked
-                    save_data(data)
-                    st.rerun()
-
-        with col_content:
-            completed_style = "text-decoration: line-through; opacity: 0.6;" if completed else ""
-            current_border = f"border-left-color: {border_color}; background: {bg_alpha};" if i == current_idx else f"border-left-color: {border_color}; background: rgba(255,255,255,0.025);"
-
-            st.markdown(f"""
-            <div class="timeline-item {current_class}" style="{current_border}">
-                <span class="timeline-time">{slot['time']}</span>
-                <span class="timeline-task" style="{completed_style}">{status_icon} {slot['task']}</span>
-                <span class="timeline-badge" style="background: {colors['tag']}22; color: {colors['accent']}; border: 1px solid {colors['accent']}44;">{cat}</span>
-            </div>
-            """, unsafe_allow_html=True)
-
-
-def render_habits(day_data: dict, data: dict, today_key: str, streaks: dict) -> None:
-    """Render the habit tracker with checkboxes and progress bars."""
-    st.markdown('<div class="section-header"><span class="section-icon">✅</span><span class="section-title">Habit Tracker</span></div>', unsafe_allow_html=True)
-
-    habits_data = day_data.setdefault("habits", {h["id"]: False for h in HABITS})
-    completed_count = sum(1 for v in habits_data.values() if v)
-
-    # Overall progress
-    pct = int((completed_count / len(HABITS)) * 100) if HABITS else 0
-    progress_color = "#81c784" if pct == 100 else "#6c63ff" if pct >= 60 else "#ffb74d"
-
-    st.markdown(f"""
-    <div class="glass-card" style="margin-bottom: 1.2rem;">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.8rem;">
-            <span style="font-weight:700; font-size:0.95rem;">Daily Completion</span>
-            <span style="font-size:1.5rem; font-weight:800; color:{progress_color};">{pct}%</span>
-        </div>
-        <div class="progress-wrap">
-            <div class="progress-fill" style="width:{pct}%; background: linear-gradient(90deg, #6c63ff, {progress_color});"></div>
-        </div>
-        <div style="font-size:0.75rem; color:#7986cb; margin-top:0.5rem;">{completed_count}/{len(HABITS)} habits done today</div>
-    </div>
-    """, unsafe_allow_html=True)
-
-    for habit in HABITS:
-        hid = habit["id"]
-        is_done = habits_data.get(hid, False)
-        streak = streaks.get(hid, 0)
-        cat_colors = CATEGORY_COLORS.get(habit["category"], CATEGORY_COLORS["Study"])
-        completed_cls = "completed" if is_done else ""
-
-        col_cb, col_info = st.columns([0.1, 0.9])
-        with col_cb:
-            checked = st.checkbox(
-                label="",
-                value=is_done,
-                key=f"habit_{today_key}_{hid}",
-                label_visibility="collapsed"
-            )
-            if checked != is_done:
-                habits_data[hid] = checked
-                save_data(data)
-                st.rerun()
-
-        with col_info:
-            done_style = "text-decoration: line-through; opacity: 0.65;" if is_done else ""
-            streak_html = f'<span class="streak-badge">🔥 {streak}d</span>' if streak > 0 else ""
-
-            st.markdown(f"""
-            <div class="habit-card {completed_cls}">
-                <div class="habit-header">
-                    <span class="habit-title" style="{done_style}">{habit['icon']} {habit['label']}</span>
-                    {streak_html}
-                </div>
-                <div style="font-size:0.72rem; color:{cat_colors['accent']}; margin-bottom:4px;">{habit['category']}</div>
-                <div class="progress-wrap">
-                    <div class="progress-fill" style="width:{'100' if is_done else '0'}%; background: {cat_colors['accent']};"></div>
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
-
-
-def render_score_and_reward(day_data: dict) -> None:
-    """Show today's score and the Minecraft reward if earned."""
-    score = compute_score(day_data)
-    all_done = all(day_data.get("habits", {}).values()) if day_data.get("habits") else False
-
-    col1, col2 = st.columns([1, 1])
-    with col1:
-        color = "#81c784" if score >= 80 else "#6c63ff" if score >= 50 else "#ffb74d"
-        st.markdown(f"""
-        <div class="metric-card" style="height:140px; display:flex; flex-direction:column; align-items:center; justify-content:center;">
-            <div class="metric-value" style="background: linear-gradient(135deg, {color}, #4fc3f7); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; font-size: 3rem;">{score}%</div>
-            <div class="metric-label">Today's Score</div>
-        </div>
-        """, unsafe_allow_html=True)
-    with col2:
-        if all_done:
-            st.markdown("""
-            <div class="reward-card" style="height:140px; display:flex; flex-direction:column; align-items:center; justify-content:center;">
-                <div style="font-size:2rem;">🎮</div>
-                <div style="font-weight:800; font-size:0.95rem; color:#ffd54f; margin-top:0.4rem;">Minecraft Unlocked!</div>
-                <div style="font-size:0.75rem; color:#ffb74d; margin-top:0.3rem;">You earned your gaming time!</div>
-            </div>
-            """, unsafe_allow_html=True)
-        else:
-            remaining = sum(1 for v in day_data.get("habits", {}).values() if not v)
-            st.markdown(f"""
-            <div class="metric-card" style="height:140px; display:flex; flex-direction:column; align-items:center; justify-content:center;">
-                <div style="font-size:2rem;">🔒</div>
-                <div style="font-weight:700; font-size:0.85rem; color:#ffb74d; margin-top:0.4rem;">Minecraft Locked</div>
-                <div style="font-size:0.75rem; color:#7986cb; margin-top:0.3rem;">{remaining} habit{'s' if remaining != 1 else ''} remaining</div>
-            </div>
-            """, unsafe_allow_html=True)
-
-
-def render_insights(day_data: dict, streaks: dict) -> None:
-    """Generate and display smart insights."""
-    st.markdown('<div class="section-header" style="margin-top:1.5rem;"><span class="section-icon">🧠</span><span class="section-title">Smart Insights</span></div>', unsafe_allow_html=True)
-
-    habits_data = day_data.get("habits", {})
-    score = compute_score(day_data)
-
-    insights = []
-
-    # Score-based
-    if score == 100:
-        insights.append(("success", "🏆 Perfect day! You completed everything. You're built different!"))
-    elif score >= 80:
-        insights.append(("success", f"🔥 Outstanding! {score}% done. You're on a roll — keep the momentum!"))
-    elif score >= 60:
-        insights.append(("info", f"💪 Good progress at {score}%. A final push will make today count!"))
-    elif score >= 40:
-        insights.append(("warning", f"⚠️ Only {score}% completed. Your future FAANG self needs you to step up today!"))
-    else:
-        insights.append(("warning", f"🚨 {score}% done — don't let the day slip. Even 2 more habits changes everything!"))
-
-    # Habit-specific
-    for habit in HABITS:
-        hid = habit["id"]
-        done = habits_data.get(hid, False)
-        streak = streaks.get(hid, 0)
-        if not done and habit["category"] in ["DSA", "AI/ML"]:
-            insights.append(("warning", f"⏰ {habit['label']} is pending — this is your placement currency. Do it now!"))
-        if streak >= 7:
-            insights.append(("success", f"🔥 {streak}-day streak on {habit['label']}! Compound consistency is your superpower."))
-        elif streak >= 3:
-            insights.append(("info", f"✨ {streak} days straight on {habit['label']}. Keep building that streak!"))
-
-    # Weak-area suggestions
-    dsa_done = habits_data.get("dsa", False)
-    aiml_done = habits_data.get("aiml", False)
-    interview_done = habits_data.get("interview", False)
-    if not dsa_done and not interview_done:
-        insights.append(("warning", "📌 Both DSA and Interview Prep are incomplete — these are your core placement pillars!"))
-    if not aiml_done:
-        insights.append(("info", "🤖 AI/ML learning pending — your project experience is your differentiator in ML roles!"))
-
-    # Cap at 4 insights
-    for kind, msg in insights[:4]:
-        st.markdown(f'<div class="insight-card insight-{kind}">{msg}</div>', unsafe_allow_html=True)
-
-
-def render_analytics(data: dict) -> None:
-    """Full analytics dashboard."""
-    st.markdown("## 📊 Analytics Dashboard")
-
-    history = get_last_n_days(data, 7)
-    dates   = [d["date"] for d in history]
-    scores  = [d["score"] for d in history]
-
-    # ── Row 1: Metrics ──
-    col1, col2, col3, col4 = st.columns(4)
-    avg_score = int(sum(scores) / len(scores)) if scores else 0
-    perfect_days = sum(1 for s in scores if s == 100)
-    best_streak  = max((max(data["streaks"].values(), default=0) if data.get("streaks") else 0), 0)
-    total_days   = len([k for k, v in data.get("days", {}).items() if compute_score(v) > 0])
-
-    for col, (val, label, icon) in zip(
-        [col1, col2, col3, col4],
-        [(f"{avg_score}%", "7-Day Avg", "📈"),
-         (f"{perfect_days}", "Perfect Days", "⭐"),
-         (f"{best_streak}🔥", "Best Streak", "🏆"),
-         (f"{total_days}", "Active Days", "📅")]
-    ):
-        with col:
-            st.markdown(f"""
-            <div class="metric-card">
-                <div style="font-size:1.5rem; margin-bottom:0.3rem;">{icon}</div>
-                <div class="metric-value" style="font-size:1.8rem;">{val}</div>
-                <div class="metric-label">{label}</div>
-            </div>
-            """, unsafe_allow_html=True)
-
-    st.markdown("<br>", unsafe_allow_html=True)
-
-    # ── Row 2: Charts ──
-    col_left, col_right = st.columns([3, 2])
-
-    with col_left:
-        # Weekly productivity bar chart
-        bar_colors = ["#81c784" if s == 100 else "#6c63ff" if s >= 70 else "#ffb74d" if s >= 40 else "#ef5350" for s in scores]
-        fig_bar = go.Figure(go.Bar(
-            x=dates, y=scores,
-            marker_color=bar_colors,
-            text=[f"{s}%" for s in scores],
-            textposition="outside",
-            textfont=dict(color="rgba(255,255,255,0.8)", size=11),
-        ))
-        fig_bar.update_layout(
-            title=dict(text="Weekly Productivity Score", font=dict(color="rgba(255,255,255,0.9)", size=14)),
-            paper_bgcolor="rgba(0,0,0,0)",
-            plot_bgcolor="rgba(0,0,0,0)",
-            font=dict(color="rgba(255,255,255,0.7)", family="Space Grotesk"),
-            yaxis=dict(range=[0, 115], gridcolor="rgba(255,255,255,0.05)", ticksuffix="%"),
-            xaxis=dict(gridcolor="rgba(255,255,255,0.05)"),
-            margin=dict(l=10, r=10, t=45, b=10),
-            height=280,
-            showlegend=False,
-        )
-        st.plotly_chart(fig_bar, use_container_width=True, config={"displayModeBar": False})
-
-    with col_right:
-        # Category time distribution (from today's schedule)
-        schedule = get_today_schedule()
-        cat_time: dict = {}
-        for slot in schedule:
-            cat = slot["category"]
-            if cat != "Break":
-                cat_time[cat] = cat_time.get(cat, 0) + slot.get("duration", 0)
-        if cat_time:
-            cat_colors_pie = [CATEGORY_COLORS.get(c, {"accent": "#6c63ff"})["accent"] for c in cat_time.keys()]
-            fig_pie = go.Figure(go.Pie(
-                labels=list(cat_time.keys()),
-                values=list(cat_time.values()),
-                hole=0.5,
-                marker=dict(colors=cat_colors_pie, line=dict(color="rgba(0,0,0,0.3)", width=2)),
-                textinfo="label+percent",
-                textfont=dict(size=10, color="rgba(255,255,255,0.85)"),
-            ))
-            fig_pie.update_layout(
-                title=dict(text="Time by Category (Today)", font=dict(color="rgba(255,255,255,0.9)", size=14)),
-                paper_bgcolor="rgba(0,0,0,0)",
-                plot_bgcolor="rgba(0,0,0,0)",
-                font=dict(color="rgba(255,255,255,0.7)", family="Space Grotesk"),
-                showlegend=False,
-                margin=dict(l=10, r=10, t=45, b=10),
-                height=280,
-            )
-            st.plotly_chart(fig_pie, use_container_width=True, config={"displayModeBar": False})
-
-    # ── Row 3: Habit heatmap ──
-    st.markdown('<div class="section-header" style="margin-top: 0.5rem;"><span class="section-icon">🔥</span><span class="section-title">Habit Completion — Last 7 Days</span></div>', unsafe_allow_html=True)
-
-    days_data = get_last_n_days(data, 7)
-    habit_labels = [h["label"] for h in HABITS]
-    z_matrix = []
-    for habit in HABITS:
-        row = []
-        for day in days_data:
-            hval = data.get("days", {}).get(day["key"], {}).get("habits", {}).get(habit["id"], False)
-            row.append(1 if hval else 0)
-        z_matrix.append(row)
-
-    fig_heat = go.Figure(go.Heatmap(
-        z=z_matrix,
-        x=dates,
-        y=habit_labels,
-        colorscale=[[0, "rgba(255,255,255,0.05)"], [1, "#6c63ff"]],
-        showscale=False,
-        text=[["✅" if v else "❌" for v in row] for row in z_matrix],
-        texttemplate="%{text}",
-        textfont=dict(size=16),
-        hoverongaps=False,
-        xgap=3, ygap=3,
-    ))
-    fig_heat.update_layout(
-        paper_bgcolor="rgba(0,0,0,0)",
-        plot_bgcolor="rgba(0,0,0,0)",
-        font=dict(color="rgba(255,255,255,0.7)", family="Space Grotesk"),
-        xaxis=dict(side="top", tickfont=dict(size=11)),
-        yaxis=dict(tickfont=dict(size=11)),
-        margin=dict(l=10, r=10, t=40, b=10),
-        height=230,
-    )
-    st.plotly_chart(fig_heat, use_container_width=True, config={"displayModeBar": False})
-
-
-def render_settings(data: dict) -> None:
-    """Settings panel."""
-    st.markdown("## ⚙️ Settings & Preferences")
-
-    col1, col2 = st.columns(2)
-    with col1:
-        st.markdown('<div class="glass-card">', unsafe_allow_html=True)
-        st.markdown("### 🎨 Appearance")
-        theme = data.get("settings", {}).get("theme", "dark")
-        new_theme = st.radio("Theme", ["dark", "light"], index=0 if theme == "dark" else 1, key="theme_radio")
-        if new_theme != theme:
-            data.setdefault("settings", {})["theme"] = new_theme
-            save_data(data)
-            st.rerun()
-        st.markdown("</div>", unsafe_allow_html=True)
-
-    with col2:
-        st.markdown('<div class="glass-card">', unsafe_allow_html=True)
-        st.markdown("### 📝 Today's Notes")
-        today_key = get_today_key()
-        day_data  = get_day_data(data, today_key)
-        note = st.text_area("Jot something down…", value=day_data.get("notes", ""), height=120, key="notes_ta", label_visibility="collapsed")
-        if note != day_data.get("notes", ""):
-            day_data["notes"] = note
-            save_data(data)
-        st.markdown("</div>", unsafe_allow_html=True)
-
-    # Reset today
-    st.markdown("---")
-    st.markdown("### 🔄 Data Management")
-    col_r1, col_r2 = st.columns(2)
-    with col_r1:
-        if st.button("🗑️ Reset Today's Progress", use_container_width=True):
-            today_key = get_today_key()
-            if today_key in data["days"]:
-                data["days"][today_key] = {
-                    "habits": {h["id"]: False for h in HABITS},
-                    "task_status": {},
-                    "notes": "",
-                    "score": 0,
-                }
-                save_data(data)
-                st.success("Today's progress has been reset.")
-                st.rerun()
-    with col_r2:
-        if st.button("📤 Export Data (JSON)", use_container_width=True):
-            st.download_button(
-                label="💾 Download productivity_data.json",
-                data=json.dumps(data, indent=2),
-                file_name="productivity_data.json",
-                mime="application/json",
-            )
-
+            return {"history": {}}
+    return {"history": {}}
+
+def save_data(data):
+    with open(DATA_FILE, "w") as f:
+        json.dump(data, f, indent=4)
+
+if "data" not in st.session_state:
+    st.session_state.data = load_data()
+
+# Helper Functions
+def get_productivity_score(completed_habits_count, date_obj):
+    day_habits = get_day_habits(date_obj)
+    return (completed_habits_count / len(day_habits)) * 100 if day_habits else 0
+
+def get_lab_adjustment(selected_date):
+    day_name = selected_date.strftime("%A")
+    if day_name == "Monday":
+        return ["08:00–09:40 (Lab Session)"]
+    elif day_name == "Thursday":
+        return ["08:00–11:30 (Lab Session)"]
+    elif day_name == "Friday":
+        return ["09:50–11:30 (Lab Session)"]
+    return []
 
 # ─────────────────────────────────────────────────────────────────────────────
 # SIDEBAR
 # ─────────────────────────────────────────────────────────────────────────────
-def render_sidebar(data: dict, today_key: str, streaks: dict, day_data: dict) -> str:
-    with st.sidebar:
-        st.markdown("""
-        <div style="padding: 0.5rem 0 1.5rem 0;">
-            <div class="app-logo">ProductivityOS</div>
-            <div class="app-tagline">Placement Prep · Daily Tracker</div>
-        </div>
-        """, unsafe_allow_html=True)
+with st.sidebar:
+    st.markdown("<h2 style='text-align:center; font-weight: 800; letter-spacing: -1px; background: -webkit-linear-gradient(#fff, #999); -webkit-background-clip: text; -webkit-text-fill-color: transparent;'>NeuroTrack OS</h2>", unsafe_allow_html=True)
+    st.markdown("<br>", unsafe_allow_html=True)
+    
+    page = st.radio("Navigation", ["🏠 Dashboard", "📅 Daily Tracker", "📊 Analytics"], label_visibility="collapsed")
+    
+    st.markdown("<br><hr style='border-color: rgba(255,255,255,0.1);'>", unsafe_allow_html=True)
+    today = datetime.now().date()
+    st.markdown(f"<p style='color:#a1a1aa; font-weight: 500;'>Today: <span style='color:#fff;'>{today.strftime('%d %b, %Y')}</span></p>", unsafe_allow_html=True)
 
-        # Navigation
-        page = st.radio(
-            "Navigation",
-            ["📅 Daily Planner", "📊 Analytics", "⚙️ Settings"],
-            label_visibility="collapsed",
-        )
+    st.markdown("<br><br><br>", unsafe_allow_html=True)
+    if st.button("Reset Everything", use_container_width=True):
+        st.session_state.data = {"history": {}}
+        save_data(st.session_state.data)
+        st.rerun()
 
-        st.markdown("---")
+# Date string for today
+today_str = str(today)
+if today_str not in st.session_state.data["history"]:
+    today_habits = get_day_habits(today)
+    st.session_state.data["history"][today_str] = {"habits": {h: False for h in today_habits}, "score": 0}
 
-        # Today summary
-        now = datetime.now()
-        day_name = now.strftime("%A")
-        date_str = now.strftime("%B %d, %Y")
-        score    = compute_score(day_data)
-        is_lab   = day_name in ["Monday", "Thursday", "Friday"]
+today_data = st.session_state.data["history"][today_str]
+today_score = today_data["score"]
 
-        lab_badge = f'<span style="background:#00695c33; color:#80cbc4; border:1px solid #80cbc433; border-radius:4px; padding:2px 7px; font-size:0.68rem; font-weight:600;">🔬 LAB DAY</span>' if is_lab else ""
+# Calculate Streak
+streak = 0
+curr_date = today
+while str(curr_date) in st.session_state.data["history"] and st.session_state.data["history"][str(curr_date)]["score"] > 0:
+    streak += 1
+    curr_date -= timedelta(days=1)
 
-        st.markdown(f"""
-        <div class="glass-card" style="padding:1rem;">
-            <div style="font-size:1.1rem; font-weight:700; margin-bottom:0.2rem;">{day_name} {lab_badge}</div>
-            <div style="font-size:0.75rem; color:#7986cb; margin-bottom:0.8rem;">{date_str}</div>
-            <div style="font-size:0.8rem; color:#90a4ae; margin-bottom:0.3rem;">Today's Progress</div>
-            <div style="font-size:1.6rem; font-weight:800; color:{'#81c784' if score >= 80 else '#6c63ff' if score >= 50 else '#ffb74d'};">{score}%</div>
-            <div class="progress-wrap" style="margin-top:0.4rem;">
-                <div class="progress-fill" style="width:{score}%; background: linear-gradient(90deg, #6c63ff, #4fc3f7);"></div>
+status_text = "Excellent" if today_score >= 80 else "Good" if today_score >= 50 else "Focus Needed"
+status_color = "#2ecc71" if today_score >= 80 else "#f39c12" if today_score >= 50 else "#e74c3c"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# HERO SECTION (Always visible top)
+# ─────────────────────────────────────────────────────────────────────────────
+st.markdown(f"""
+<div style="text-align: center; margin-bottom: 2rem;">
+    <div class="hero-title">NeuroTrack AI</div>
+    <div class="hero-subtitle">Your Intelligent Productivity System</div>
+    <div>
+        <span class="status-badge" style="color: {status_color}; border-color: {status_color}55; background: {status_color}1a; box-shadow: 0 0 15px {status_color}33;">
+            ● {status_text}
+        </span>
+    </div>
+</div>
+""", unsafe_allow_html=True)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# PAGE: DASHBOARD
+# ─────────────────────────────────────────────────────────────────────────────
+if page == "🏠 Dashboard":
+    # --- Top Metrics Row ---
+    c1, c2, c3, c4 = st.columns(4)
+    with c1:
+        st.markdown("<div class='glass-card'>", unsafe_allow_html=True)
+        st.metric("Today's Score", f"{today_score:.0f}%")
+        st.markdown("</div>", unsafe_allow_html=True)
+    with c2:
+        st.markdown("<div class='glass-card'>", unsafe_allow_html=True)
+        st.metric("Current Streak", f"{streak} Days", "🔥")
+        st.markdown("</div>", unsafe_allow_html=True)
+    with c3:
+        completed = sum([1 for d in st.session_state.data["history"].values() if d["score"] == 100])
+        st.markdown("<div class='glass-card'>", unsafe_allow_html=True)
+        st.metric("Perfect Days", f"{completed} Days", "💎")
+        st.markdown("</div>", unsafe_allow_html=True)
+    with c4:
+        all_scores = [d["score"] for d in st.session_state.data["history"].values()]
+        avg_score = sum(all_scores)/len(all_scores) if all_scores else 0
+        st.markdown("<div class='glass-card'>", unsafe_allow_html=True)
+        st.metric("Avg Performance", f"{avg_score:.1f}%")
+        st.markdown("</div>", unsafe_allow_html=True)
+
+    # --- Github Style Heatmap & Smart Insights ---
+    colA, colB = st.columns([2.5, 1])
+    
+    with colA:
+        st.markdown("<div class='glass-card'>", unsafe_allow_html=True)
+        st.markdown("<h3 style='margin-top:0; color:#fff;'>Activity Heatmap</h3>", unsafe_allow_html=True)
+        
+        # Prepare Data for Heatmap
+        year_ago = today - timedelta(days=364)
+        dates = [year_ago + timedelta(days=i) for i in range(365)]
+        
+        heat_data = []
+        hover_text = []
+        for d in dates:
+            d_str = str(d)
+            if d_str in st.session_state.data["history"]:
+                score = st.session_state.data["history"][d_str]["score"]
+            else:
+                score = 0
+            heat_data.append(score)
+            hover_text.append(f"Date: {d_str}<br>Prod: {score:.0f}%")
+            
+        weeks = [heat_data[i:i + 7] for i in range(0, 364, 7)]
+        hover_weeks = [hover_text[i:i + 7] for i in range(0, 364, 7)]
+        
+        if len(weeks) == 52:
+            fig = go.Figure(data=go.Heatmap(
+                z=list(zip(*weeks)),
+                text=list(zip(*hover_weeks)),
+                hoverinfo="text",
+                colorscale=[
+                    [0.0, '#161b22'],
+                    [0.25, '#0e4429'],
+                    [0.5, '#006d32'],
+                    [0.75, '#26a641'],
+                    [1.0, '#39d353']
+                ],
+                showscale=False,
+                xgap=4,
+                ygap=4
+            ))
+            
+            fig.update_layout(
+                height=220,
+                margin=dict(l=20, r=20, t=10, b=20),
+                paper_bgcolor='rgba(0,0,0,0)',
+                plot_bgcolor='rgba(0,0,0,0)',
+                xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
+                yaxis=dict(showgrid=False, zeroline=False, autorange='reversed', ticktext=['S','M','T','W','T','F','S'], tickvals=[0,1,2,3,4,5,6], tickfont=dict(color='#8b949e'))
+            )
+            st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
+        else:
+            st.warning("Insufficient data shape for heatmap.")
+        st.markdown("</div>", unsafe_allow_html=True)
+
+    with colB:
+        st.markdown("<div class='glass-card' style='height: 100%;'>", unsafe_allow_html=True)
+        st.markdown("<h3 style='margin-top:0; color:#fff;'>🧠 AI Insight</h3>", unsafe_allow_html=True)
+        
+        if today_score == 100:
+            msg = "You're on fire! 🔥 An absolute productivity machine today."
+        elif today_score >= 60:
+            msg = "Solid progress! 🚀 Push a bit more to achieve perfection today."
+        elif today_score > 0:
+            msg = "You've started, which is the hardest part. Keep the momentum going! ⚡"
+        else:
+            msg = "A fresh day! Let's conquer those tasks. Remember: small consistent steps. 🌌"
+            
+        st.markdown(f"<div class='insight-text'>{msg}</div>", unsafe_allow_html=True)
+        
+        labs = get_lab_adjustment(today)
+        if labs:
+            st.markdown(f"""
+            <div style='margin-top: 20px; padding: 10px; background: rgba(231, 76, 60, 0.1); border-left: 3px solid #e74c3c; border-radius: 4px; font-size: 0.9rem; color: #e74c3c;'>
+                <b>🕒 Lab Day Active:</b><br>{labs[0]}
             </div>
-        </div>
-        """, unsafe_allow_html=True)
+            """, unsafe_allow_html=True)
+            
+        st.markdown("</div>", unsafe_allow_html=True)
 
-        # Streak summary
-        st.markdown('<div style="font-size:0.75rem; color:#7986cb; margin:0.8rem 0 0.4rem; text-transform:uppercase; letter-spacing:0.08em; font-weight:600;">Active Streaks</div>', unsafe_allow_html=True)
-        for habit in HABITS:
-            s = streaks.get(habit["id"], 0)
-            if s > 0:
-                st.markdown(f'<div style="display:flex; justify-content:space-between; font-size:0.8rem; padding:3px 0; color:#e8eaf6;">'
-                            f'<span>{habit["icon"]} {habit["label"]}</span>'
-                            f'<span style="color:#ff7043; font-weight:700;">🔥 {s}d</span></div>', unsafe_allow_html=True)
 
-        st.markdown("---")
-
-        # Quote
-        quote = random.choice(MOTIVATIONAL_QUOTES)
-        st.markdown(f'<div class="quote-card">"{quote}"</div>', unsafe_allow_html=True)
-
-        # Time
-        st.markdown(f'<div style="font-size:0.7rem; color:#455a64; text-align:center;">Last refreshed: {now.strftime("%H:%M:%S")}</div>', unsafe_allow_html=True)
-        if st.button("🔄 Refresh", use_container_width=True):
+# ─────────────────────────────────────────────────────────────────────────────
+# PAGE: DAILY TRACKER
+# ─────────────────────────────────────────────────────────────────────────────
+elif page == "📅 Daily Tracker":
+    
+    st.markdown("<div style='text-align: center; margin-bottom: 2rem;'><h2 style='color:#fff;'>Mission Control</h2></div>", unsafe_allow_html=True)
+    
+    col_date, col_view = st.columns([1, 2])
+    with col_date:
+        selected_date = st.date_input("Select Date", today)
+        date_str = str(selected_date)
+        if date_str not in st.session_state.data["history"]:
+            day_habits = get_day_habits(selected_date)
+            st.session_state.data["history"][date_str] = {"habits": {h: False for h in day_habits}, "score": 0}
+            
+    day_data = st.session_state.data["history"][date_str]
+    
+    col1, col2 = st.columns([1.2, 1])
+    
+    with col1:
+        st.markdown("<div class='glass-card'>", unsafe_allow_html=True)
+        st.markdown("<h3 style='margin-top:0; color:#fff;'>Daily Protocol</h3>", unsafe_allow_html=True)
+        
+        # We need a form or immediate update to update score dynamically
+        new_habits = {}
+        current_day_habits = get_day_habits(selected_date)
+        for h in current_day_habits:
+            new_habits[h] = st.checkbox(f"   {h}", value=day_data["habits"].get(h, False), key=f"chk_{date_str}_{h}")
+            
+        # Check if changed
+        if any(new_habits.get(h, False) != day_data["habits"].get(h, False) for h in current_day_habits):
+            day_data["habits"].update(new_habits)
+            completed_count = sum(1 for h in current_day_habits if day_data["habits"].get(h, False))
+            day_data["score"] = get_productivity_score(completed_count, selected_date)
+            st.session_state.data["history"][date_str] = day_data
+            save_data(st.session_state.data)
             st.rerun()
+            
+        st.markdown("</div>", unsafe_allow_html=True)
 
-    return page
-
+    with col2:
+        score = day_data["score"]
+        
+        st.markdown("<div class='glass-card' style='text-align: center; padding: 40px 20px;'>", unsafe_allow_html=True)
+        
+        # Circular completion Ring using Plotly Indicator
+        fig = go.Figure(go.Indicator(
+            mode = "gauge+number",
+            value = score,
+            number = {'suffix': "%", 'font': {'size': 50, 'color': '#fff'}},
+            domain = {'x': [0, 1], 'y': [0, 1]},
+            gauge = {
+                'axis': {'range': [None, 100], 'visible': False},
+                'bar': {'color': "#2ecc71"},
+                'bgcolor': "rgba(255,255,255,0.05)",
+                'borderwidth': 0,
+                'shape': "angular",
+            }
+        ))
+        fig.update_layout(height=250, margin=dict(l=10, r=10, t=10, b=10), paper_bgcolor='rgba(0,0,0,0)', font={'family': "Inter"})
+        st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
+        
+        st.markdown("</div>", unsafe_allow_html=True)
+        
+        # Reward System Validation
+        if score == 100:
+            st.snow() # Using snow + balloon combo for effect
+            st.balloons()
+            st.markdown("""
+                <div class='glass-card' style='background: linear-gradient(45deg, rgba(39, 174, 96, 0.4), rgba(41, 128, 185, 0.4)); border-color: #2ecc71; text-align: center; animation: popIn 0.5s ease-out;'>
+                    <h2 style='color: white; margin-top: 0;'>🎉 Protocol Completed!</h2>
+                    <p style='color: #eee; font-size: 1.2rem; margin-bottom: 0;'><b>🎮 Minecraft Time Unlocked!</b> Enjoy your reward.</p>
+                </div>
+                <style>
+                    @keyframes popIn { 0% { transform: scale(0.9); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+                </style>
+            """, unsafe_allow_html=True)
 
 # ─────────────────────────────────────────────────────────────────────────────
-# MAIN APP
+# PAGE: ANALYTICS
 # ─────────────────────────────────────────────────────────────────────────────
-def main() -> None:
-    # Load data
-    data = load_data()
-    theme = data.get("settings", {}).get("theme", "dark")
-    inject_css(theme)
+elif page == "📊 Analytics":
+    
+    st.markdown("<h2 style='color:#fff; text-align:center;'>Detailed Analytics</h2><br>", unsafe_allow_html=True)
+    
+    col1, col2 = st.columns([1, 1])
+    
+    with col1:
+        st.markdown("<div class='glass-card'>", unsafe_allow_html=True)
+        st.markdown("<h3>Weekly Performance</h3>", unsafe_allow_html=True)
+        last_7_days = [today - timedelta(days=i) for i in range(6, -1, -1)]
+        week_data = []
+        for d in last_7_days:
+            ds = str(d)
+            week_data.append(st.session_state.data["history"].get(ds, {"score": 0})["score"])
+            
+        fig_week = px.area(
+            x=[d.strftime('%a') for d in last_7_days], 
+            y=week_data,
+            line_shape='spline'
+        )
+        fig_week.update_traces(
+            line_color='#00f2fe', 
+            fillcolor='rgba(0, 242, 254, 0.2)',
+            mode='lines+markers',
+            marker=dict(size=8, color='#4facfe', line=dict(width=2, color='#fff'))
+        )
+        fig_week.update_layout(
+            hovermode="x unified",
+            paper_bgcolor='rgba(0,0,0,0)',
+            plot_bgcolor='rgba(0,0,0,0)',
+            xaxis=dict(showgrid=False, title=""),
+            yaxis=dict(showgrid=True, gridcolor='rgba(255,255,255,0.05)', title="Score %", range=[0, 105]),
+            font=dict(color='#a1a1aa')
+        )
+        st.plotly_chart(fig_week, use_container_width=True, config={'displayModeBar': False})
+        st.markdown("</div>", unsafe_allow_html=True)
+        
+    with col2:
+        st.markdown("<div class='glass-card'>", unsafe_allow_html=True)
+        st.markdown("<h3>Monthly Overview</h3>", unsafe_allow_html=True)
+        current_month_days = [d for d in st.session_state.data["history"] if d.startswith(today.strftime('%Y-%m'))]
+        
+        if current_month_days:
+            month_scores = [st.session_state.data["history"][d]["score"] for d in current_month_days]
+            avg_month = sum(month_scores) / len(month_scores)
+            
+            c_m1, c_m2 = st.columns([1, 1.2])
+            with c_m1:
+                fig_pie = go.Figure(go.Pie(
+                    values=[avg_month, 100-avg_month],
+                    hole=.75,
+                    marker_colors=['#a855f7', 'rgba(255,255,255,0.05)'],
+                    textinfo='none',
+                    hoverinfo='skip'
+                ))
+                fig_pie.update_layout(
+                    showlegend=False,
+                    height=250,
+                    margin=dict(l=0, r=0, t=0, b=0),
+                    paper_bgcolor='rgba(0,0,0,0)',
+                    annotations=[dict(text=f'{avg_month:.0f}%', x=0.5, y=0.5, font_size=30, font_color="#fff", showarrow=False)]
+                )
+                st.plotly_chart(fig_pie, use_container_width=True, config={'displayModeBar': False})
+            
+            with c_m2:
+                total_habits = 0
+                total_possible = 0
+                for k in current_month_days:
+                    try:
+                        k_date = datetime.strptime(k, "%Y-%m-%d").date()
+                        k_habits = get_day_habits(k_date)
+                        total_possible += len(k_habits)
+                        total_habits += sum(1 for h in k_habits if st.session_state.data['history'][k]['habits'].get(h, False))
+                    except Exception:
+                        pass
+                
+                st.markdown("<br>", unsafe_allow_html=True)
+                st.markdown(f"**Average Score:** {avg_month:.1f}%")
+                st.markdown(f"**Tasks Finished:** {total_habits} / {total_possible}")
+                st.progress(total_habits/total_possible if total_possible > 0 else 0)
+                
+        else:
+            st.info("No data collected for this month yet.")
+        st.markdown("</div>", unsafe_allow_html=True)
 
-    today_key = get_today_key()
-    day_data  = get_day_data(data, today_key)
-    streaks   = compute_streaks(data)
-    schedule  = get_today_schedule()
-
-    # Sidebar
-    page = render_sidebar(data, today_key, streaks, day_data)
-
-    # ── DAILY PLANNER PAGE ──────────────────────────────────────────────────
-    if "Daily Planner" in page:
-        # Header
-        day_name = datetime.now().strftime("%A")
-        is_lab   = day_name in ["Monday", "Thursday", "Friday"]
-        lab_note = ""
-        if day_name == "Monday":
-            lab_note = "🔬 Lab adjustment: 8:00–9:40 slot replaced with Lab Session"
-        elif day_name == "Thursday":
-            lab_note = "🔬 Lab adjustment: 8:00–11:30 slot replaced with Extended Lab Session"
-        elif day_name == "Friday":
-            lab_note = "🔬 Lab adjustment: 9:50–11:30 slot replaced with Lab Session"
-
-        st.markdown(f"""
-        <div style="margin-bottom: 1.8rem;">
-            <h1 style="font-size:2rem; font-weight:800; letter-spacing:-0.03em; margin-bottom:0.2rem;">
-                Daily Planner 📅
-            </h1>
-            <p style="color:#7986cb; font-size:0.88rem;">
-                {datetime.now().strftime("%A, %B %d, %Y")} · {len(schedule)} time blocks scheduled
-                {f' · <span style="color:#80cbc4;">{lab_note}</span>' if is_lab else ''}
-            </p>
-        </div>
-        """, unsafe_allow_html=True)
-
-        # Score row
-        render_score_and_reward(day_data)
-        st.markdown("<br>", unsafe_allow_html=True)
-
-        # Two columns: timeline + habits
-        col_timeline, col_habits = st.columns([3, 2])
-        with col_timeline:
-            with st.container():
-                render_timeline(schedule, day_data, data, today_key)
-
-        with col_habits:
-            render_habits(day_data, data, today_key, streaks)
-            render_insights(day_data, streaks)
-
-    # ── ANALYTICS PAGE ──────────────────────────────────────────────────────
-    elif "Analytics" in page:
-        render_analytics(data)
-
-    # ── SETTINGS PAGE ───────────────────────────────────────────────────────
-    elif "Settings" in page:
-        render_settings(data)
-
-
-if __name__ == "__main__":
-    main()
+# ─────────────────────────────────────────────────────────────────────────────
+# FOOTER
+# ─────────────────────────────────────────────────────────────────────────────
+st.markdown("<div style='text-align: center; margin-top: 50px; color: rgba(255,255,255,0.3); font-size: 0.8rem;'>NeuroTrack AI • Powered by Streamlit • 2026</div>", unsafe_allow_html=True)

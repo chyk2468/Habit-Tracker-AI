@@ -1,37 +1,34 @@
 {
-  "days": {
-    "2026-03-30": {
-      "habits": {
-        "dsa": false,
-        "aiml": false,
-        "interview": false,
-        "study": false,
-        "assignment": false
-      },
-      "task_status": {
-        "08:00\u201309:40_\ud83d\udd2c Lab Session (Colle": true,
-        "09:40\u201311:00_Deep Work: DSA Probl": true,
-        "23:30\u201301:00_\ud83c\udfae Minecraft / Chill ": true,
-        "22:30\u201323:30_Mock Interviews / Ap": true,
-        "11:30\u201313:00_AI/ML Study / Projec": true,
-        "14:00\u201315:30_College Study / Assi": true,
-        "15:30\u201317:00_Interview Prep (Core": true,
-        "17:30\u201318:00_Revision + Note Maki": true,
-        "18:00\u201320:00_Advanced DSA / CP": true,
-        "21:00\u201322:30_AI/ML Deep Dive / Re": true
-      },
-      "notes": "",
-      "score": 0
+    "history": {
+        "2026-03-30": {
+            "habits": {
+                "DSA": true,
+                "AI/ML": true,
+                "Interview Prep": true,
+                "Study": true,
+                "Assignment": true
+            },
+            "score": 100.0
+        },
+        "2026-03-31": {
+            "habits": {
+                "DSA": true,
+                "AI/ML": true,
+                "Interview Prep": true,
+                "Study": true,
+                "Assignment": true,
+                "8:00 \u2013 10:00 \u2192 DSA": true,
+                "10:00 \u2013 11:30 \u2192 AI/ML": true,
+                "11:30 \u2013 12:15 \u2192 Interview Preparation": true,
+                "12:15 \u2013 1:00 \u2192 Class Study": true,
+                "6:00 \u2013 7:00 \u2192 Class Study": true,
+                "7:00 \u2013 8:00 \u2192 Assignment": true,
+                "8:00 \u2013 8:30 \u2192 Dinner": true,
+                "8:30 \u2013 9:30 \u2192 AI/ML": true,
+                "9:30 \u2013 10:30 \u2192 DSA Revision": true,
+                "10:30 \u2013 11:30 \u2192 Relax": true
+            },
+            "score": 100.0
+        }
     }
-  },
-  "streaks": {
-    "dsa": 0,
-    "aiml": 0,
-    "interview": 0,
-    "study": 0,
-    "assignment": 0
-  },
-  "settings": {
-    "theme": "dark"
-  }
 }
